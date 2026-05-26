@@ -1,8 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 
-class TaskDetailCallScreen extends StatelessWidget {
+class TaskDetailCallScreen extends StatefulWidget {
   const TaskDetailCallScreen({super.key});
+
+  @override
+  State<TaskDetailCallScreen> createState() => _TaskDetailCallScreenState();
+}
+
+class _TaskDetailCallScreenState extends State<TaskDetailCallScreen> {
+  String _phoneNumber = '(555) 123-4567'; // Default placeholder
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      if (args.containsKey('phoneNumber')) {
+        _phoneNumber = args['phoneNumber'] as String;
+      }
+    }
+  }
+
+  Future<void> _makeCall() async {
+    final Uri url = Uri.parse('tel:${_phoneNumber.replaceAll(RegExp(r'[^\d+]'), '')}');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch dialer for $_phoneNumber')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,8 +49,7 @@ class TaskDetailCallScreen extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const Text(
@@ -43,14 +74,15 @@ class TaskDetailCallScreen extends StatelessWidget {
                       const Spacer(flex: 2),
 
                       // Phone Number
-                      const Text(
-                        '(555) 123-4567',
-                        style: TextStyle(
-                          fontSize: 36,
+                      Text(
+                        _phoneNumber,
+                        style: const TextStyle(
+                          fontSize: 32,
                           fontWeight: FontWeight.bold,
                           color: AppColors.textPrimary,
                           letterSpacing: 1,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
                       Text(
@@ -68,11 +100,11 @@ class TaskDetailCallScreen extends StatelessWidget {
                         width: double.infinity,
                         height: 52,
                         child: ElevatedButton.icon(
-                          onPressed: () {},
+                          onPressed: _makeCall,
                           icon: const Icon(Icons.phone, size: 20),
-                          label: const Text(
-                            'Call (555) 123-4567',
-                            style: TextStyle(
+                          label: Text(
+                            'Call $_phoneNumber',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -95,8 +127,7 @@ class TaskDetailCallScreen extends StatelessWidget {
                         children: [
                           _buildSecondaryAction(Icons.copy, 'Copy Number'),
                           _buildSecondaryAction(Icons.message, 'Message'),
-                          _buildSecondaryAction(
-                              Icons.person_add, 'Save Contact'),
+                          _buildSecondaryAction(Icons.person_add, 'Save Contact'),
                         ],
                       ),
 
@@ -112,8 +143,7 @@ class TaskDetailCallScreen extends StatelessWidget {
                               color: AppColors.textSecondary,
                             ),
                             children: [
-                              const TextSpan(
-                                  text: 'Not the right number? '),
+                              const TextSpan(text: 'Not the right number? '),
                               TextSpan(
                                 text: 'Edit',
                                 style: TextStyle(
@@ -143,7 +173,7 @@ class TaskDetailCallScreen extends StatelessWidget {
         Container(
           width: 56,
           height: 56,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.lightGreen,
             shape: BoxShape.circle,
           ),
@@ -162,3 +192,4 @@ class TaskDetailCallScreen extends StatelessWidget {
     );
   }
 }
+

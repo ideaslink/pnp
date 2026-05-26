@@ -1,8 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 
-class TaskDetailNavigateScreen extends StatelessWidget {
+class TaskDetailNavigateScreen extends StatefulWidget {
   const TaskDetailNavigateScreen({super.key});
+
+  @override
+  State<TaskDetailNavigateScreen> createState() => _TaskDetailNavigateScreenState();
+}
+
+class _TaskDetailNavigateScreenState extends State<TaskDetailNavigateScreen> {
+  String _address = '1600 Amphitheatre Parkway, Mountain View, CA';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map<String, dynamic>) {
+      if (args.containsKey('address')) {
+        _address = args['address'] as String;
+      }
+    }
+  }
+
+  Future<void> _openMap() async {
+    final String query = Uri.encodeComponent(_address);
+    final Uri googleMapsUrl = Uri.parse('google.navigation:q=$query');
+    final Uri appleMapsUrl = Uri.parse('http://maps.apple.com/?q=$query');
+
+    try {
+      if (await canLaunchUrl(googleMapsUrl)) {
+        await launchUrl(googleMapsUrl);
+      } else if (await canLaunchUrl(appleMapsUrl)) {
+        await launchUrl(appleMapsUrl);
+      } else {
+        // Fallback to browser
+        final Uri browserUrl = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+        await launchUrl(browserUrl, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open map application')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,8 +60,7 @@ class TaskDetailNavigateScreen extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const Text(
@@ -72,16 +114,16 @@ class TaskDetailNavigateScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  '1600 Amphitheatre Parkway',
-                                  style: TextStyle(
+                                Text(
+                                  _address,
+                                  style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
                                 Text(
-                                  'Mountain View, CA 94043, USA',
+                                  'Detected Address',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: AppColors.textSecondary,
@@ -90,7 +132,7 @@ class TaskDetailNavigateScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-                          Icon(Icons.edit, color: AppColors.primaryGreen, size: 20),
+                          const Icon(Icons.edit, color: AppColors.primaryGreen, size: 20),
                         ],
                       ),
                     ),
@@ -132,7 +174,7 @@ class TaskDetailNavigateScreen extends StatelessWidget {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.location_on,
                                   color: AppColors.primaryGreen,
                                   size: 40,
@@ -166,7 +208,7 @@ class TaskDetailNavigateScreen extends StatelessWidget {
                                 ],
                               ),
                               child: const Text(
-                                'Map View',
+                                'Map View Summary',
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
@@ -192,7 +234,7 @@ class TaskDetailNavigateScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: _openMap,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
                     foregroundColor: Colors.white,
@@ -219,7 +261,7 @@ class TaskDetailNavigateScreen extends StatelessWidget {
         Container(
           width: 52,
           height: 52,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.lightGreen,
             shape: BoxShape.circle,
           ),
@@ -260,20 +302,11 @@ class _MapGridPainter extends CustomPainter {
       ..color = AppColors.primaryGreen.withValues(alpha: 0.15)
       ..strokeWidth = 3;
 
-    canvas.drawLine(
-        Offset(0, size.height * 0.5),
-        Offset(size.width, size.height * 0.5),
-        roadPaint);
-    canvas.drawLine(
-        Offset(size.width * 0.5, 0),
-        Offset(size.width * 0.5, size.height),
-        roadPaint);
-    canvas.drawLine(
-        Offset(0, size.height * 0.3),
-        Offset(size.width * 0.7, size.height),
-        roadPaint);
+    canvas.drawLine(Offset(0, size.height * 0.5), Offset(size.width, size.height * 0.5), roadPaint);
+    canvas.drawLine(Offset(size.width * 0.5, 0), Offset(size.width * 0.5, size.height), roadPaint);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

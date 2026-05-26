@@ -5,9 +5,15 @@ allprojects {
     }
 }
 
-rootProject.buildDir = "../build"
+rootProject.buildDir = file("../build")
 subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    def rootDrive = rootProject.projectDir.absolutePath.substring(0, 3).toLowerCase()
+    def projectDrive = project.projectDir.absolutePath.substring(0, 3).toLowerCase()
+    if (rootDrive == projectDrive) {
+        project.buildDir = "${rootProject.buildDir}/${project.name}"
+    } else {
+        project.buildDir = new File(System.getProperty("java.io.tmpdir"), "flutter_pnp_build/${project.name}")
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")
