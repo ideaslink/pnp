@@ -8,8 +8,12 @@ import 'screens/settings_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/privacy_screen.dart';
 import 'screens/menu_screen.dart';
+import 'screens/category_list_screen.dart';
+import 'services/settings_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SettingsService.instance.init();
   runApp(const PointAndPlayApp());
 }
 
@@ -32,6 +36,7 @@ class PointAndPlayApp extends StatelessWidget {
         '/history': (context) => const HistoryScreen(),
         '/privacy': (context) => const PrivacyScreen(),
         '/menu': (context) => const MenuScreen(),
+        '/category-list': (context) => const CategoryListScreen(),
       },
     );
   }

@@ -1,8 +1,50 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/database_helper.dart';
+import '../models/scan_record.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  List<ScanRecord> _scans = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadScans();
+  }
+
+  Future<void> _loadScans() async {
+    final scans = await DatabaseHelper.instance.getScans();
+    if (mounted) {
+      setState(() {
+        _scans = scans;
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+
+  String _formatTime(DateTime dt) {
+    String period = 'AM';
+    int hour = dt.hour;
+    if (hour >= 12) {
+      period = 'PM';
+      if (hour > 12) hour -= 12;
+    }
+    if (hour == 0) hour = 12;
+    return '$hour:${dt.minute.toString().padLeft(2, '0')} $period';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,52 +82,11 @@ class HistoryScreen extends StatelessWidget {
             ),
 
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Today
-                    _buildDateHeader('Today'),
-                    _buildHistoryItem(
-                      icon: Icons.text_snippet_outlined,
-                      title: 'Text Extracted',
-                      subtitle: '"The quick brown fox jumps over..."',
-                      time: '10:45 AM',
-                      color: AppColors.primaryGreen,
-                    ),
-                    _buildHistoryItem(
-                      icon: Icons.person_outline,
-                      title: 'Contact Saved',
-                      subtitle: 'Jane Doe, Product Manager',
-                      time: '9:12 AM',
-                      color: AppColors.primaryGreen,
-                    ),
-
-                    // Yesterday
-                    _buildDateHeader('Yesterday'),
-                    _buildHistoryItem(
-                      icon: Icons.link,
-                      title: 'Link Opened',
-                      subtitle: 'https://tailwindcss.com',
-                      time: '3:30 PM',
-                      color: AppColors.primaryGreen,
-                    ),
-
-                    // Oct 15
-                    _buildDateHeader('October 15, 2023'),
-                    _buildHistoryItem(
-                      icon: Icons.person_outline,
-                      title: 'Contact Saved',
-                      subtitle: 'John Appleseed, CEO',
-                      time: '9:00 AM',
-                      color: AppColors.primaryGreen,
-                    ),
-
-                    const SizedBox(height: 80),
-                  ],
-                ),
-              ),
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen))
+                  : _scans.isEmpty
+                      ? _buildEmptyState()
+                      : _buildHistoryList(),
             ),
           ],
         ),
@@ -98,30 +99,63 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDateHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textSecondary,
-        ),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.history, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.5)),
+          const SizedBox(height: 16),
+          const Text(
+            'No scans yet',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  Widget _buildHistoryList() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      itemCount: _scans.length,
+      itemBuilder: (context, index) {
+        final scan = _scans[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(
+              context,
+              '/detected-tasks',
+              arguments: {
+                'ocrResult': scan.ocrResult,
+                'imagePath': scan.imagePath,
+              },
+            );
+          },
+          child: _buildHistoryItem(
+            scan: scan,
+            title: '${scan.ocrResult.totalItems} items detected',
+            date: _formatDate(scan.timestamp),
+            time: _formatTime(scan.timestamp),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildHistoryItem({
-    required IconData icon,
+    required ScanRecord scan,
     required String title,
-    required String subtitle,
+    required String date,
     required String time,
-    required Color color,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -136,13 +170,18 @@ class HistoryScreen extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
               color: AppColors.lightGreen,
               borderRadius: BorderRadius.circular(12),
+              image: DecorationImage(
+                image: FileImage(File(scan.imagePath)),
+                fit: BoxFit.cover,
+                // Handle missing image gracefully
+                onError: (exception, stackTrace) {},
+              ),
             ),
-            child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -157,15 +196,13 @@ class HistoryScreen extends StatelessWidget {
                     color: AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
-                  subtitle,
+                  date,
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

@@ -4,6 +4,13 @@ import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../models/ocr_result.dart';
 import '../services/ocr_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import '../services/database_helper.dart';
+import '../models/scan_record.dart';
+import 'dart:convert';
+import '../services/settings_service.dart';
 
 class DetectedTasksScreen extends StatefulWidget {
   const DetectedTasksScreen({super.key});
@@ -41,10 +48,24 @@ class _DetectedTasksScreenState extends State<DetectedTasksScreen> {
 
     try {
       final result = await OcrService().processImage(File(photo.path));
+      
+      // Save to local storage
+      final appDir = await getApplicationDocumentsDirectory();
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final savedImage = await File(photo.path).copy(p.join(appDir.path, fileName));
+
+      // Save to database
+      final scanRecord = ScanRecord(
+        imagePath: savedImage.path,
+        timestamp: DateTime.now(),
+        ocrResult: result,
+      );
+      await DatabaseHelper.instance.insertScan(scanRecord);
+
       if (mounted) {
         setState(() {
           _ocrResult = result;
-          _imagePath = photo.path;
+          _imagePath = savedImage.path;
           _isProcessing = false;
         });
       }
@@ -54,6 +75,61 @@ class _DetectedTasksScreenState extends State<DetectedTasksScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error processing image: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportData() async {
+    if (_ocrResult == null) return;
+    
+    final format = SettingsService.instance.exportFormat;
+    final String content;
+    final String ext;
+    
+    if (format == 'JSON') {
+      content = jsonEncode({
+        'phones': _ocrResult!.phoneNumbers,
+        'emails': _ocrResult!.emails,
+        'websites': _ocrResult!.websites,
+        'addresses': _ocrResult!.addresses,
+        'rawText': _ocrResult!.rawText,
+      });
+      ext = 'json';
+    } else {
+      content = '''
+Phones: ${_ocrResult!.phoneNumbers.join(', ')}
+Emails: ${_ocrResult!.emails.join(', ')}
+Websites: ${_ocrResult!.websites.join(', ')}
+Addresses: ${_ocrResult!.addresses.join(', ')}
+
+Raw Text:
+${_ocrResult!.rawText}
+''';
+      ext = 'txt';
+    }
+
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final fileName = 'export_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final file = File(p.join(appDir.path, fileName));
+      await file.writeAsString(content);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Exported to $fileName'),
+            backgroundColor: AppColors.primaryGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export data: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -110,6 +186,27 @@ class _DetectedTasksScreenState extends State<DetectedTasksScreen> {
                     ],
                   ),
                 ),
+                if (_ocrResult != null && !_ocrResult!.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _exportData,
+                          icon: const Icon(Icons.download, size: 16),
+                          label: const Text('Export'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryGreen,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 Expanded(
                   child: SingleChildScrollView(
@@ -298,11 +395,18 @@ class _DetectedTasksScreenState extends State<DetectedTasksScreen> {
         title: 'Call $phone',
         subtitle: 'Phone number detected',
         actionLabel: 'Call',
-        onTap: () => Navigator.pushNamed(
-          context,
-          '/task-detail-call',
-          arguments: {'phoneNumber': phone},
-        ),
+        onTap: () async {
+          final uri = Uri.parse('tel:$phone');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Could not launch phone dialer')),
+              );
+            }
+          }
+        },
       ));
       cards.add(const SizedBox(height: 12));
     }
@@ -314,11 +418,18 @@ class _DetectedTasksScreenState extends State<DetectedTasksScreen> {
         title: 'Navigate to $address',
         subtitle: 'Address detected',
         actionLabel: 'Navigate',
-        onTap: () => Navigator.pushNamed(
-          context,
-          '/task-detail-navigate',
-          arguments: {'address': address},
-        ),
+        onTap: () async {
+          final uri = Uri.parse('https://maps.google.com/?q=${Uri.encodeComponent(address)}');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Could not launch maps')),
+              );
+            }
+          }
+        },
       ));
       cards.add(const SizedBox(height: 12));
     }
@@ -330,7 +441,22 @@ class _DetectedTasksScreenState extends State<DetectedTasksScreen> {
         title: 'Visit $website',
         subtitle: 'Website detected',
         actionLabel: 'Open',
-        onTap: () {} // Logic will be handle inside a detail screen if created, or directly here
+        onTap: () async {
+          String url = website;
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://$url';
+          }
+          final uri = Uri.parse(url);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Could not launch website')),
+              );
+            }
+          }
+        },
       ));
       cards.add(const SizedBox(height: 12));
     }
@@ -342,7 +468,18 @@ class _DetectedTasksScreenState extends State<DetectedTasksScreen> {
         title: 'Email $email',
         subtitle: 'Email address detected',
         actionLabel: 'Email',
-        onTap: () {},
+        onTap: () async {
+          final uri = Uri.parse('mailto:$email');
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri);
+          } else {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Could not launch email client')),
+              );
+            }
+          }
+        },
       ));
       cards.add(const SizedBox(height: 12));
     }
@@ -454,8 +591,6 @@ class _DetectedTasksScreenState extends State<DetectedTasksScreen> {
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/settings_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -9,10 +10,20 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool autoSaveScans = true;
+  late bool autoSaveScans;
   bool ocrModeAccurate = true;
   bool autoCopyClipboard = false;
   bool defaultFlash = false;
+  late String defaultLanguage;
+  late String exportFormat;
+
+  @override
+  void initState() {
+    super.initState();
+    autoSaveScans = SettingsService.instance.autoSaveScans;
+    defaultLanguage = SettingsService.instance.defaultLanguage;
+    exportFormat = SettingsService.instance.exportFormat;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,8 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.arrow_back,
-                        color: AppColors.textPrimary),
+                    icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
                     onPressed: () => Navigator.pop(context),
                   ),
                   const Expanded(
@@ -73,14 +83,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _buildSettingsTile(
                       icon: Icons.save_outlined,
                       title: 'Auto-save scans',
-                      trailing: _buildSwitch(autoSaveScans, (val) {
+                      trailing: _buildSwitch(autoSaveScans, (val) async {
+                        await SettingsService.instance.setAutoSaveScans(val);
                         setState(() => autoSaveScans = val);
                       }),
                     ),
                     _buildSettingsTile(
                       icon: Icons.description_outlined,
                       title: 'Default export format',
-                      trailing: _buildValueChevron('TXT'),
+                      trailing: _buildDropdown(
+                        value: exportFormat,
+                        items: const ['TXT', 'JSON'],
+                        onChanged: (val) async {
+                          if (val != null) {
+                            await SettingsService.instance.setExportFormat(val);
+                            setState(() => exportFormat = val);
+                          }
+                        },
+                      ),
                     ),
 
                     // OCR PREFERENCES
@@ -88,7 +108,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _buildSettingsTile(
                       icon: Icons.language,
                       title: 'Default language',
-                      trailing: _buildValueChevron('English'),
+                      trailing: _buildDropdown(
+                        value: defaultLanguage,
+                        items: const ['English', 'Auto'],
+                        onChanged: (val) async {
+                          if (val != null) {
+                            await SettingsService.instance.setDefaultLanguage(val);
+                            setState(() => defaultLanguage = val);
+                          }
+                        },
+                      ),
                     ),
                     _buildSettingsTile(
                       icon: Icons.text_fields,
@@ -116,27 +145,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       trailing: _buildSwitch(defaultFlash, (val) {
                         setState(() => defaultFlash = val);
                       }),
-                    ),
-
-                    // GENERAL
-                    _buildSectionHeader('GENERAL'),
-                    _buildSettingsTile(
-                      icon: Icons.notifications_outlined,
-                      title: 'Notifications',
-                      trailing: const Icon(Icons.chevron_right,
-                          color: AppColors.primaryGreen),
-                    ),
-                    _buildSettingsTile(
-                      icon: Icons.help_outline,
-                      title: 'Help & Support',
-                      trailing: const Icon(Icons.chevron_right,
-                          color: AppColors.primaryGreen),
-                    ),
-                    _buildSettingsTile(
-                      icon: Icons.info_outline,
-                      title: 'About',
-                      trailing: const Icon(Icons.chevron_right,
-                          color: AppColors.primaryGreen),
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -219,9 +227,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         const SizedBox(width: 4),
-        const Icon(Icons.chevron_right,
-            color: AppColors.primaryGreen, size: 20),
+        const Icon(Icons.chevron_right, color: AppColors.primaryGreen, size: 20),
       ],
+    );
+  }
+
+  Widget _buildDropdown({
+    required String value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: value,
+        icon: const Icon(Icons.arrow_drop_down, color: AppColors.primaryGreen),
+        style: TextStyle(
+          fontSize: 14,
+          color: AppColors.primaryGreen,
+          fontWeight: FontWeight.w600,
+        ),
+        onChanged: onChanged,
+        items: items.map<DropdownMenuItem<String>>((String item) {
+          return DropdownMenuItem<String>(
+            value: item,
+            child: Text(item),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -248,9 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: !ocrModeAccurate
-                    ? AppColors.primaryGreen
-                    : Colors.transparent,
+                color: !ocrModeAccurate ? AppColors.primaryGreen : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -258,8 +288,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color:
-                      !ocrModeAccurate ? Colors.white : AppColors.textSecondary,
+                  color: !ocrModeAccurate ? Colors.white : AppColors.textSecondary,
                 ),
               ),
             ),
@@ -269,9 +298,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: ocrModeAccurate
-                    ? AppColors.primaryGreen
-                    : Colors.transparent,
+                color: ocrModeAccurate ? AppColors.primaryGreen : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -279,8 +306,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color:
-                      ocrModeAccurate ? Colors.white : AppColors.textSecondary,
+                  color: ocrModeAccurate ? Colors.white : AppColors.textSecondary,
                 ),
               ),
             ),
