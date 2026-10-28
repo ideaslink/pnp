@@ -11,6 +11,7 @@ import '../services/database_helper.dart';
 import '../models/scan_record.dart';
 import 'dart:convert';
 import '../services/settings_service.dart';
+import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 class DetectedTasksScreen extends StatefulWidget {
   const DetectedTasksScreen({super.key});
@@ -390,9 +391,11 @@ ${_ocrResult!.rawText}
 
     // Phone numbers
     for (final phone in result.phoneNumbers) {
+      final flag = _getFlagEmoji(phone);
+      final displayPhone = flag.isNotEmpty ? '$flag $phone' : phone;
       cards.add(_buildTaskCard(
         icon: Icons.phone,
-        title: 'Call $phone',
+        title: displayPhone,
         subtitle: 'Phone number detected',
         actionLabel: 'Call',
         onTap: () async {
@@ -415,7 +418,7 @@ ${_ocrResult!.rawText}
     for (final address in result.addresses) {
       cards.add(_buildTaskCard(
         icon: Icons.location_on,
-        title: 'Navigate to $address',
+        title: address,
         subtitle: 'Address detected',
         actionLabel: 'Navigate',
         onTap: () async {
@@ -438,7 +441,7 @@ ${_ocrResult!.rawText}
     for (final website in result.websites) {
       cards.add(_buildTaskCard(
         icon: Icons.language,
-        title: 'Visit $website',
+        title: website,
         subtitle: 'Website detected',
         actionLabel: 'Open',
         onTap: () async {
@@ -465,7 +468,7 @@ ${_ocrResult!.rawText}
     for (final email in result.emails) {
       cards.add(_buildTaskCard(
         icon: Icons.email,
-        title: 'Email $email',
+        title: email,
         subtitle: 'Email address detected',
         actionLabel: 'Email',
         onTap: () async {
@@ -626,5 +629,25 @@ ${_ocrResult!.rawText}
         ],
       ),
     );
+  }
+
+  String _getFlagEmoji(String phone) {
+    try {
+      var pn = PhoneNumber.parse(phone);
+      if (!pn.isValid()) {
+        pn = PhoneNumber.parse(phone, callerCountry: IsoCode.US);
+      }
+      final isoCode = pn.isoCode.name.toUpperCase();
+      if (isoCode.length == 2) {
+        int flagOffset = 0x1F1E6;
+        int asciiOffset = 0x41;
+        int firstChar = isoCode.codeUnitAt(0) - asciiOffset + flagOffset;
+        int secondChar = isoCode.codeUnitAt(1) - asciiOffset + flagOffset;
+        return String.fromCharCode(firstChar) + String.fromCharCode(secondChar);
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return '';
   }
 }

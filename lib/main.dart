@@ -9,6 +9,7 @@ import 'screens/history_screen.dart';
 import 'screens/privacy_screen.dart';
 import 'screens/menu_screen.dart';
 import 'screens/category_list_screen.dart';
+import 'screens/about_screen.dart';
 import 'services/settings_service.dart';
 
 void main() async {
@@ -37,6 +38,7 @@ class PointAndPlayApp extends StatelessWidget {
         '/privacy': (context) => const PrivacyScreen(),
         '/menu': (context) => const MenuScreen(),
         '/category-list': (context) => const CategoryListScreen(),
+        '/about': (context) => const AboutScreen(),
       },
     );
   }

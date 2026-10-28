@@ -63,7 +63,7 @@ class MenuScreen extends StatelessWidget {
               context,
               icon: Icons.info_outline,
               title: 'About',
-              onTap: () {},
+              onTap: () => Navigator.pushNamed(context, '/about'),
             ),
 
             const Spacer(),

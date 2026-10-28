@@ -16,39 +16,37 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
       'icon': Icons.info_outline,
       'title': 'Information We Collect',
       'content':
-          'To provide and improve our services, we collect:\n\n'
-          '• Data You Provide: Information you give us directly, such as account details and scanned images.\n\n'
-          '• Data Collected Automatically: Anonymous data about your device (e.g., type, OS) and usage analytics to enhance performance.',
+          'We do not collect any personal data. All of your scanned data and images are kept exclusively within the app on your local device.',
     },
     {
       'icon': Icons.visibility_outlined,
       'title': 'How We Use Your Information',
       'content':
-          'We use the information we collect to provide, maintain, and improve our services, to develop new features, and to protect our users.',
+          'Since no personal data is collected, we do not use your information. Your data remains strictly on your device for your own use.',
     },
     {
       'icon': Icons.share_outlined,
       'title': 'Data Sharing and Disclosure',
       'content':
-          'We do not sell your personal information. We may share information with service providers who assist us in operating our services.',
+          'We do not collect or share any of your personal information with third parties. Everything stays securely on your device.',
     },
     {
       'icon': Icons.security_outlined,
       'title': 'Data Security',
       'content':
-          'We implement appropriate technical and organizational measures to protect your personal data against unauthorized access, alteration, or destruction.',
+          'Your data is secured locally by your device\'s operating system. We do not transmit it to any external servers.',
     },
     {
       'icon': Icons.gavel_outlined,
       'title': 'Your Rights and Choices',
       'content':
-          'You have the right to access, update, or delete your personal information at any time through the application settings.',
+          'You have full control over your data. You can delete all your scans and information at any time directly from the application.',
     },
     {
       'icon': Icons.mail_outline,
       'title': 'Contact Us',
       'content':
-          'If you have questions about this privacy policy, please contact us at privacy@pointandplay.com.',
+          'If you have questions about this privacy policy, please contact us at pnpclould@gmail.com.',
     },
   ];
 
@@ -129,7 +127,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Last Updated: October 26, 2023',
+                      'Last Updated: September 22, 2026',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textHint,

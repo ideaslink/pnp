@@ -67,15 +67,56 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.lightGreen,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.search,
-                        color: AppColors.primaryGreen, size: 22),
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.lightGreen,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.search,
+                            color: AppColors.primaryGreen, size: 22),
+                      ),
+                      const SizedBox(width: 8),
+                      if (_scans.isNotEmpty)
+                        GestureDetector(
+                          onTap: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Delete All'),
+                                content: const Text('Are you sure you want to delete all scans?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await DatabaseHelper.instance.deleteAllScans();
+                              _loadScans();
+                            }
+                          },
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.delete_sweep,
+                                color: Colors.red, size: 22),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -141,6 +182,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
             title: '${scan.ocrResult.totalItems} items detected',
             date: _formatDate(scan.timestamp),
             time: _formatTime(scan.timestamp),
+            onDelete: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete Scan'),
+                  content: const Text('Are you sure you want to delete this scan?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true && scan.id != null) {
+                await DatabaseHelper.instance.deleteScan(scan.id!);
+                _loadScans();
+              }
+            },
           ),
         );
       },
@@ -152,6 +216,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     required String title,
     required String date,
     required String time,
+    required VoidCallback onDelete,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -222,6 +287,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: onDelete,
           ),
         ],
       ),
