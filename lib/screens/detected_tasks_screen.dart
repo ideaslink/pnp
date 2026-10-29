@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../theme/app_theme.dart';
 import '../models/ocr_result.dart';
@@ -69,6 +70,14 @@ class _DetectedTasksScreenState extends State<DetectedTasksScreen> {
           _imagePath = savedImage.path;
           _isProcessing = false;
         });
+        if (result.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No items detected. Raw text is shown below.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -353,7 +362,7 @@ ${_ocrResult!.rawText}
 
   Widget _buildEmptyState() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 48),
+      padding: const EdgeInsets.symmetric(vertical: 24),
       child: Column(
         children: [
           Icon(
@@ -380,6 +389,10 @@ ${_ocrResult!.rawText}
               height: 1.5,
             ),
           ),
+          if (_ocrResult != null && _ocrResult!.rawText.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _buildRawTextCard(_ocrResult!.rawText, initiallyExpanded: true),
+          ],
         ],
       ),
     );
@@ -497,8 +510,9 @@ ${_ocrResult!.rawText}
     return Column(children: cards);
   }
 
-  Widget _buildRawTextCard(String rawText) {
+  Widget _buildRawTextCard(String rawText, {bool initiallyExpanded = false}) {
     return ExpansionTile(
+      initiallyExpanded: initiallyExpanded,
       tilePadding: const EdgeInsets.symmetric(horizontal: 16),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       shape: RoundedRectangleBorder(
@@ -538,13 +552,38 @@ ${_ocrResult!.rawText}
             color: AppColors.background,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: SelectableText(
-            rawText,
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-              height: 1.5,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: TextButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: rawText));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Raw text copied to clipboard'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  label: const Text('Copy'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primaryGreen,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ),
+              SelectableText(
+                rawText,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+            ],
           ),
         ),
       ],

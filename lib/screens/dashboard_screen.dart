@@ -136,15 +136,94 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       if (mounted) {
-        await Navigator.pushNamed(
-          context,
-          '/detected-tasks',
-          arguments: {
-            'ocrResult': result,
-            'imagePath': savedImage.path,
-          },
-        );
-        _loadData(); // Reload data when coming back
+        setState(() => _isProcessing = false);
+        _loadData();
+
+        if (result.isEmpty) {
+          final choice = await showDialog<String>(
+            context: context,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.search_off, color: AppColors.primaryGreen),
+                  SizedBox(width: 8),
+                  Text(
+                    'No items detected',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              content: const Text(
+                'No actionable tasks (phones, emails, websites, or addresses) were found in the photo. Would you like to retake the photo or go to the Detected Tasks page to see the raw text?',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, 'cancel'),
+                  child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.pop(context, 'view'),
+                  child: const Text(
+                    'Detected Tasks',
+                    style: TextStyle(
+                      color: AppColors.primaryGreen,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, 'retake'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text('Retake Photo'),
+                ),
+              ],
+            ),
+          );
+
+          if (choice == 'retake') {
+            _captureAndProcess();
+          } else if (choice == 'view') {
+            if (mounted) {
+              await Navigator.pushNamed(
+                context,
+                '/detected-tasks',
+                arguments: {
+                  'ocrResult': result,
+                  'imagePath': savedImage.path,
+                },
+              );
+              _loadData();
+            }
+          }
+        } else {
+          await Navigator.pushNamed(
+            context,
+            '/detected-tasks',
+            arguments: {
+              'ocrResult': result,
+              'imagePath': savedImage.path,
+            },
+          );
+          _loadData(); // Reload data when coming back
+        }
       }
     } catch (e) {
       if (mounted) {
